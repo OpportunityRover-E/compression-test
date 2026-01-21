@@ -1,0 +1,64 @@
+#text - lossless
+import urllib.request
+from bs4 import BeautifulSoup
+import gzip
+import os # Import the os module
+import time # Import time module for timing
+
+
+def gettext(url):
+
+  with urllib.request.urlopen(url) as response:
+    html_content = response.read().decode('utf-8')
+    soup = BeautifulSoup(html_content, 'html.parser')
+    # Get all text from the page, then clean up extra whitespace
+    plain_text = soup.get_text(separator=' ', strip=True)
+    return plain_text
+
+def clean_website_text(text, start_marker=None, end_marker=None):
+
+    processed_text = text
+
+    # Apply start marker (excludes the marker itself)
+    if start_marker:
+        start_index = processed_text.find(start_marker)
+        if start_index != -1:
+            processed_text = processed_text[start_index + len(start_marker):]
+
+    # Apply end marker (excludes the marker itself)
+    if end_marker:
+        end_index = processed_text.find(end_marker)
+        if end_index != -1:
+            processed_text = processed_text[:end_index]
+
+    return processed_text
+
+ # Example usage for the current NASA page:
+text_url = "https://science.nasa.gov/photojournal/d-star-panorama-by-opportunity/"
+
+start_time = time.time() # Start timing
+
+website_text = gettext(text_url)
+
+cleaned_output = clean_website_text(
+    website_text,
+    start_marker="Description ",
+    end_marker="Keep Exploring"
+)
+
+print(cleaned_output)
+
+content = cleaned_output.encode('utf-8') # Encode the string to bytes
+
+with gzip.open('compressed_file.txt.gz', 'wb') as f_out:
+    f_out.write(content)
+
+end_time = time.time() # End timing
+
+# Calculate duration in nanoseconds
+duration_ns = (end_time - start_time) * 1_000_000_000
+
+# Removed the problematic os.path.getsize(cleaned_output) line
+print(f"Original text content size (bytes): {len(cleaned_output.encode('utf-8'))}") # Print size of the string content
+print(f"Compressed file size (compressed_file.txt.gz): {os.path.getsize('compressed_file.txt.gz')} bytes")
+print(f"Execution time: {duration_ns:.2f} nanoseconds")
