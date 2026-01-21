@@ -1,0 +1,70 @@
+#lossy method - dithering/noise shaping
+import numpy as np
+from PIL import Image
+import urllib.request
+import os
+import time # Import the time module
+from itertools import groupby
+from numpy import asarray
+import warnings; warnings.filterwarnings('ignore')
+from skimage.metrics import structural_similarity as compare_ssim
+from skimage.metrics import peak_signal_noise_ratio as compare_psnr
+
+
+def getimage (image_url): # Renamed parameter for clarity
+  urllib.request.urlretrieve(
+     image_url,
+     "Image.jpg"
+  )
+url = "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia10/pia10213/PIA10213.jpg"
+
+# Ensure the correct image is downloaded before opening
+getimage(url)
+
+start_time_total = time.time() # Start timing for the entire image processing program
+
+# Load image
+img = Image.open("Image.jpg").convert("RGB")
+# Resize the image to half its original dimensions
+img = img.resize((img.width // 2, img.height // 2), Image.LANCZOS)
+
+
+start_time_dither = time.time() # Start timing for dithering/noise shaping
+
+# Convert the image to grayscale and then to a NumPy array
+img_gray = np.asarray(img.convert('L'))
+
+# Generate noise with same shape as that of the image
+noise = np.random.normal(0, 5, img_gray.shape)
+
+# Add the noise to the image
+img_noised = img_gray + noise
+
+# Clip the pixel values to be between 0 and 255.
+img_noised = np.clip(img_noised, 0, 255).astype(np.uint8)
+display(img_noised)
+
+# Convert NumPy array to PIL Image before saving
+img_noised_pil = Image.fromarray(img_noised, 'L') # 'L' mode for grayscale image
+img_noised_pil.save('image_noised.jpg')
+
+print(os.path.getsize('Image.jpg') / os.path.getsize('image_noised.jpg'))
+
+
+end_time_dither = time.time() # End timing for dithering/noise shaping
+
+# PSNR and SSIM comparison of original grayscale with noised grayscale
+# Convert the original RGB image to grayscale numpy array for comparison
+img_original_gray_np = np.asarray(img.convert('L'))
+
+psnr_dither = compare_psnr(img_original_gray_np, img_noised)
+ssim_dither = compare_ssim(img_original_gray_np, img_noised, win_size=3) # No multichannel needed for grayscale
+print(f"SSIM (Dithering): {ssim_dither}")
+print(f"PSNR (Dithering): {psnr_dither}")
+
+duration_dither = (end_time_dither - start_time_dither) * 1_000_000_000
+print(f"Dithering/Noise Shaping execution time: {duration_dither:.2f} nanoseconds")
+
+end_time_total = time.time() # End timing for the entire image processing program
+duration_ns_total = (end_time_total - start_time_total) * 1_000_000_000
+print(f"Total image processing execution time: {duration_ns_total:.2f} nanoseconds")
