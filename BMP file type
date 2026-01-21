@@ -1,0 +1,66 @@
+#lossless method - BMP
+import numpy as np
+from PIL import Image
+import urllib.request
+import os
+import time # Import the time module
+from itertools import groupby
+from numpy import asarray
+import warnings; warnings.filterwarnings('ignore')
+# Removed subprocess as optipng is not used for BMP
+
+
+
+def getimage (image_url): # Renamed parameter for clarity
+  urllib.request.urlretrieve(
+     image_url,
+     "Image.jpg"
+  )
+url = "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia10/pia10213/PIA10213.jpg"
+
+# Ensure the correct image is downloaded before opening
+getimage(url)
+
+start_time_total = time.time() # Start timing for the entire image processing program
+
+# Removed compress_with_optipng function as it's not relevant for BMP
+
+
+# Load the original JPG image
+img = Image.open("Image.jpg")
+
+# Resize the image to half its original dimensions to match the lossy method output
+img = img.resize((img.width // 2, img.height // 2), Image.LANCZOS)
+
+# Save it as a BMP file
+bmp_input_path = "Image.bmp"
+
+start_time_bmp_save = time.time() # Start timing for BMP save
+img.save(bmp_input_path)
+end_time_bmp_save = time.time() # End timing for BMP save
+
+
+# Get size after saving as BMP
+size_bmp = os.path.getsize(bmp_input_path)
+
+
+print(f"Original JPG image size (Image.jpg): {os.path.getsize('Image.jpg')} bytes")
+print(f"BMP image size ({bmp_input_path}): {size_bmp} bytes")
+print(f"BMP save time: {end_time_bmp_save - start_time_bmp_save:.2f} seconds")
+print(f"Ratio of JPG size to BMP size: {os.path.getsize('Image.jpg') / size_bmp}")
+display(img) # Display the original resized image
+
+end_time_total = time.time() # End timing for the entire image processing program
+
+# Convert img (PIL Image) to numpy array for SSIM comparison
+img_np = np.asarray(img)
+
+# Load the saved BMP image and convert it to a numpy array for SSIM comparison
+bmp_img = Image.open(bmp_input_path).convert("RGB") #Ensure it's in RGB mode
+bmp_img_np = np.asarray(bmp_img)
+
+
+
+
+duration_ns_total = (end_time_total - start_time_total) * 1_000_000_000
+print(f"Total image processing execution time: {duration_ns_total:.2f} nanoseconds")
