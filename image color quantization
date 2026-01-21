@@ -1,0 +1,77 @@
+#lossy method - image quantization
+import numpy as np
+from PIL import Image
+import urllib.request
+import os
+import time # Import the time module
+from itertools import groupby
+from numpy import asarray
+import warnings; warnings.filterwarnings('ignore')
+from skimage.metrics import structural_similarity as compare_ssim
+from skimage.metrics import peak_signal_noise_ratio as compare_psnr
+
+
+def getimage (image_url): # Renamed parameter for clarity
+  urllib.request.urlretrieve(
+     image_url,
+     "Image.jpg"
+  )
+url = "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia10/pia10213/PIA10213.jpg"
+
+# Ensure the correct image is downloaded before opening
+getimage(url)
+
+start_time_total = time.time() # Start timing for the entire image processing program
+
+# Load image
+img = Image.open("Image.jpg").convert("RGB")
+# Resize the image to half its original dimensions
+img = img.resize((img.width // 2, img.height // 2), Image.LANCZOS)
+
+# Choose how many colors you want, consistent with optimized KMeans
+NUM_COLORS = 32
+
+start_time_octree = time.time() # Start timing for Octree quantization
+
+# Perform Octree quantization using Pillow's built-in method
+# method=2 corresponds to Image.Quantize.FASTOCTREE
+quantized_img_octree = img.quantize(colors=NUM_COLORS, method=Image.Quantize.FASTOCTREE)
+
+end_time_octree = time.time() # End timing for Octree quantization
+
+print(f"Octree Quantization time: {end_time_octree - start_time_octree:.2f} seconds")
+
+# Convert to RGB mode before saving as JPEG, as 'P' mode cannot be saved directly as JPEG
+quantized_img_octree_rgb = quantized_img_octree.convert("RGB")
+
+# Save the quantized image
+quantized_img_octree_rgb.save("image_octree_quantized.jpg", quality=50) # Save as JPEG with specified quality
+
+print(f"Original image size (Image.jpg): {os.path.getsize('Image.jpg')} bytes")
+print(f"Octree Quantized JPG image size (image_octree_quantized.jpg): {os.path.getsize('image_octree_quantized.jpg')} bytes")
+
+display(quantized_img_octree_rgb) # Display the Octree quantized image
+
+array_img= asarray(quantized_img_octree_rgb)
+
+JPEGimg = Image.fromarray(array_img, 'RGB')
+JPEGimg.save("out.jpeg", optimize=True) #lossy
+print(f"Octree Quantized JPEG image size (out.jpeg): {os.path.getsize('out.jpeg')} bytes")
+
+print(os.path.getsize('Image.jpg') / os.path.getsize('image_octree_quantized.jpg'))
+
+end_time_total = time.time() # End timing for the entire image processing program
+
+# Convert PIL Image objects to numpy arrays before passing to compare_ssim
+img_np = np.asarray(img)
+quantized_img_octree_rgb_np = np.asarray(quantized_img_octree_rgb)
+
+psnr_quant= compare_psnr(img_np, quantized_img_octree_rgb_np)
+
+ssim_quant= compare_ssim(img_np, quantized_img_octree_rgb_np, multichannel=True, win_size=3, channel_axis=-1) # Changed win_size to 3 and added channel_axis
+print(ssim_quant)
+print(psnr_quant)
+
+
+duration_ns_total = (end_time_total - start_time_total) * 1_000_000_000
+print(f"Total image processing execution time: {duration_ns_total:.2f} nanoseconds")
